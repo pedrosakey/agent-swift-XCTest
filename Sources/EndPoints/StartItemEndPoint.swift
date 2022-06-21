@@ -1,4 +1,4 @@
-//
+s//
 //  StartItemEndPoint.swift
 //  RPAgentSwiftXCTest
 //
@@ -14,7 +14,7 @@ struct StartItemEndPoint: EndPoint {
   var relativePath: String
   let parameters: [String : Any]
 
-  init(itemName: String, parentID: String? = nil, launchID: String, type: TestType) {
+    init(itemName: String, parentID: String? = nil, launchID: String, type: TestType, arrTags: [String]) {
     relativePath = "item"
     if let parentID = parentID {
       relativePath += "/\(parentID)"
@@ -25,7 +25,7 @@ struct StartItemEndPoint: EndPoint {
       "launch_id": launchID,
       "name": itemName,
       "start_time": TimeHelper.currentTimeAsString(),
-      "tags": [],
+      "tags": arrTags,
       "type": type.rawValue
     ]
   }

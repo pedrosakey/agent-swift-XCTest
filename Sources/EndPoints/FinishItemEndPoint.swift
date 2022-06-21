@@ -14,15 +14,16 @@ struct FinishItemEndPoint: EndPoint {
   let relativePath: String
   let parameters: [String : Any]
 
-  init(itemID: String, status: TestStatus) {
+    init(itemID: String, status: TestStatus, description: String) {
     relativePath = "item/\(itemID)"
     parameters = [
       "end_time": TimeHelper.currentTimeAsString(),
       "issue": [
         "comment": "",
-        "issue_type": status == .failed ? "TO_INVESTIGATE" : "PASSED"
+        "issue_type": status == .failed ? "PB001" : "ND001"
       ],
-      "status": status.rawValue
+      "status": status.rawValue,
+      "description": description
     ]
   }
 
