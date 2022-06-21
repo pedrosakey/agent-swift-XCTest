@@ -31,7 +31,6 @@ class HTTPClient {
 
   func callEndPoint<T: Decodable>(_ endPoint: EndPoint, completion: @escaping (_ result: T) -> Void) throws {
     var url = baseURL.appendingPathComponent(endPoint.relativePath)
-
     if endPoint.encoding == .url {
       var urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false)!
       let queryItems = endPoint.parameters.map {
@@ -41,19 +40,20 @@ class HTTPClient {
       urlComponents.queryItems = queryItems
       url = urlComponents.url!
     }
-
+    
     var request = URLRequest(url: url)
     request.httpMethod = endPoint.method.rawValue
     request.cachePolicy = .reloadIgnoringCacheData
     request.allHTTPHeaderFields = endPoint.headers
+      
     if endPoint.encoding == .json {
       let data = try JSONSerialization.data(withJSONObject: endPoint.parameters, options: .prettyPrinted)
       request.httpBody = data
     }
+      
     plugins.forEach { (plugin) in
       plugin.processRequest(&request)
     }
-    print(request.url ?? "")
     utilityQueue.async {
       let task = URLSession.shared.dataTask(with: request as URLRequest) { (data: Data?, response: URLResponse?, error: Error?) in
         if let error = error {
@@ -71,18 +71,20 @@ class HTTPClient {
             return
         }
 
-        do {
-          let result = try JSONDecoder().decode(T.self, from: data)
-
-          if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
-            completion(result)
-          } else {
-            print("request failed with code: \(httpResponse.statusCode)")
+        
+          do {
+            
+            let result = try JSONDecoder().decode(T.self, from: data)
+            if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+              completion(result)
+            } else {
+              print("request failed with code: \(httpResponse.statusCode), url: \(url)")
+            }
+          } catch let error {
+            print("cannot deserialize data: \(String(describing: try? JSONSerialization.jsonObject(with: data, options: []) ))")
+            print(error)
           }
-        } catch let error {
-          print("cannot deserialize data: \(String(describing: try? JSONSerialization.jsonObject(with: data, options: []) ))")
-          print(error)
-        }
+        
       }
       task.resume()
     }

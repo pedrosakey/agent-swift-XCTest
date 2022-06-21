@@ -13,7 +13,15 @@ enum ReportingServiceError: Error {
   case testSuiteIdNotFound
 }
 
-class ReportingService {
+var desc = ["":""];
+var testTags = ["":""];
+
+public func initDescReportingService(descArr: [String:String], tagsArr: [String:String]){
+    desc = descArr;
+    testTags = tagsArr;
+}
+
+public class ReportingService {
   
   private let httpClient: HTTPClient
   private let configuration: AgentConfiguration
@@ -27,7 +35,7 @@ class ReportingService {
   
   private let semaphore = DispatchSemaphore(value: 0)
   private let timeOutForRequestExpectation = 10.0
-  
+    
   init(configuration: AgentConfiguration) {
     self.configuration = configuration
     let baseURL = configuration.reportPortalURL.appendingPathComponent(configuration.projectName)
@@ -55,7 +63,6 @@ class ReportingService {
           tags: self.configuration.tags,
           mode: self.configuration.launchMode
         )
-        
         do {
           try self.httpClient.callEndPoint(endPoint) { (result: Launch) in
             self.launchID = result.id
@@ -80,7 +87,7 @@ class ReportingService {
       throw ReportingServiceError.launchIdNotFound
     }
     
-    let endPoint = StartItemEndPoint(itemName: suite.name, launchID: launchID, type: .suite)
+    let endPoint = StartItemEndPoint(itemName: suite.name, launchID: launchID, type: .suite, arrTags:["Root"])
     try httpClient.callEndPoint(endPoint) { (result: Item) in
       self.rootSuiteID = result.id
       self.semaphore.signal()
@@ -96,7 +103,7 @@ class ReportingService {
       throw ReportingServiceError.launchIdNotFound
     }
     
-    let endPoint = StartItemEndPoint(itemName: suite.name, parentID: rootSuiteID, launchID: launchID, type: .test)
+    let endPoint = StartItemEndPoint(itemName: suite.name, parentID: rootSuiteID, launchID: launchID, type: .test, arrTags: ["Suite"])
     try httpClient.callEndPoint(endPoint) { (result: Item) in
       self.testSuiteID = result.id
       self.semaphore.signal()
@@ -111,11 +118,13 @@ class ReportingService {
     guard let testSuiteID = testSuiteID else {
       throw ReportingServiceError.testSuiteIdNotFound
     }
+
     let endPoint = StartItemEndPoint(
       itemName: extractTestName(from: test),
       parentID: testSuiteID,
       launchID: launchID,
-      type: .step
+      type: .step,
+      arrTags: (testTags[extractTestName(from: test)]?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).components(separatedBy: ",")) ?? ["Test"]
     )
     
     try httpClient.callEndPoint(endPoint) { (result: Item) in
@@ -133,14 +142,14 @@ class ReportingService {
     _ = semaphore.wait(timeout: .now() + timeOutForRequestExpectation)
   }
   
-  func finishTest(_ test: XCTestCase) throws {
+    func finishTest(_ test: XCTestCase) throws {
     let testStatus = test.testRun!.hasSucceeded ? TestStatus.passed : TestStatus.failed
     if testStatus == .failed {
       testSuiteStatus = .failed
       launchStatus = .failed
     }
-    
-    let endPoint = FinishItemEndPoint(itemID: testID, status: testStatus)
+     
+        let endPoint = FinishItemEndPoint(itemID: testID, status: testStatus, description: desc[extractTestName(from: test)] ?? "")
     
     try httpClient.callEndPoint(endPoint) { (result: Finish) in
       self.semaphore.signal()
@@ -152,7 +161,7 @@ class ReportingService {
     guard let testSuiteID = testSuiteID else {
       throw ReportingServiceError.testSuiteIdNotFound
     }
-    let endPoint = FinishItemEndPoint(itemID: testSuiteID, status: testSuiteStatus)
+    let endPoint = FinishItemEndPoint(itemID: testSuiteID, status: testSuiteStatus, description: "")
     try httpClient.callEndPoint(endPoint) { (result: Finish) in
       self.semaphore.signal()
     }
@@ -163,7 +172,7 @@ class ReportingService {
     guard let rootSuiteID = rootSuiteID else {
       throw ReportingServiceError.testSuiteIdNotFound
     }
-    let endPoint = FinishItemEndPoint(itemID: rootSuiteID, status: launchStatus)
+    let endPoint = FinishItemEndPoint(itemID: rootSuiteID, status: launchStatus, description: "")
     try httpClient.callEndPoint(endPoint) { (result: Finish) in
       self.semaphore.signal()
     }
@@ -179,7 +188,7 @@ class ReportingService {
       throw ReportingServiceError.launchIdNotFound
     }
     let endPoint = FinishLaunchEndPoint(launchID: launchID, status: launchStatus)
-    try httpClient.callEndPoint(endPoint) { (result: Finish) in
+    try httpClient.callEndPoint(endPoint) { (result: LaunchFinish) in
       self.semaphore.signal()
     }
     _ = semaphore.wait(timeout: .now() + timeOutForRequestExpectation)
@@ -214,7 +223,8 @@ private extension ReportingService {
     
     return result
   }
-  
+
+    
 }
 
 extension String {
@@ -222,3 +232,4 @@ extension String {
     return lowercased() == self
   }
 }
+

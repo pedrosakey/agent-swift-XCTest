@@ -16,8 +16,6 @@ public class RPListener: NSObject, XCTestObservation {
   
   public override init() {
     super.init()
-    
-    
     XCTestObservationCenter.shared.addTestObserver(self)
   }
   
@@ -39,6 +37,7 @@ public class RPListener: NSObject, XCTestObservation {
     if let tagString = bundleProperties["ReportPortalTags"] as? String {
       tags = tagString.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines).components(separatedBy: ",")
     }
+      
     var launchMode: LaunchMode = .default
     if let isDebug = bundleProperties["IsDebugLaunchMode"] as? Bool, isDebug == true {
       launchMode = .debug
@@ -72,7 +71,7 @@ public class RPListener: NSObject, XCTestObservation {
   
   public func testBundleWillStart(_ testBundle: Bundle) {
     let configuration = readConfiguration(from: testBundle)
-    
+    print("testBundleWillStart")
     guard configuration.shouldSendReport else {
       print("Set 'YES' for 'PushTestDataToReportPortal' property in Info.plist if you want to put data to report portal")
       return
@@ -88,6 +87,7 @@ public class RPListener: NSObject, XCTestObservation {
   }
   
   public func testSuiteWillStart(_ testSuite: XCTestSuite) {
+    
     guard
       !testSuite.name.contains("All tests"),
       !testSuite.name.contains("Selected tests") else
@@ -113,6 +113,8 @@ public class RPListener: NSObject, XCTestObservation {
   }
   
   public func testCaseWillStart(_ testCase: XCTestCase) {
+      print("testCaseWillStart")
+      print(testCase)
     queue.async {
       do {
         try self.reportingService.startTest(testCase)
@@ -123,6 +125,7 @@ public class RPListener: NSObject, XCTestObservation {
   }
   
   public func testCase(_ testCase: XCTestCase, didFailWithDescription description: String, inFile filePath: String?, atLine lineNumber: Int) {
+      print("testCase")
     queue.async {
       do {
         try self.reportingService.reportError(message: "Test '\(String(describing: testCase.name)))' failed on line \(lineNumber), \(description)")
@@ -133,9 +136,10 @@ public class RPListener: NSObject, XCTestObservation {
   }
   
   public func testCaseDidFinish(_ testCase: XCTestCase) {
+      print("testCaseDidFinish")
     queue.async {
       do {
-        try self.reportingService.finishTest(testCase)
+          try self.reportingService.finishTest(testCase)
       } catch let error {
         print(error)
       }
@@ -143,6 +147,8 @@ public class RPListener: NSObject, XCTestObservation {
   }
   
   public func testSuiteDidFinish(_ testSuite: XCTestSuite) {
+      print("testSuiteDidFinish")
+
     guard
       !testSuite.name.contains("All tests"),
       !testSuite.name.contains("Selected tests") else
@@ -164,6 +170,8 @@ public class RPListener: NSObject, XCTestObservation {
   }
   
   public func testBundleDidFinish(_ testBundle: Bundle) {
+      print("testBundleDidDinish")
+
     queue.sync() {
       do {
         try self.reportingService.finishLaunch()
@@ -172,4 +180,6 @@ public class RPListener: NSObject, XCTestObservation {
       }
     }
   }
+    
+   
 }
